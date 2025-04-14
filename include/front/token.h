@@ -58,6 +58,7 @@ enum class TokenType{
     AND,        // &&
     OR,         // ||
 };
+
 std::string toString(TokenType);
 
 struct Token {

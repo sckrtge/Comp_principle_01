@@ -1,6 +1,9 @@
 cmake_minimum_required(VERSION 3.10)
 project(compiler)
 
+set(CMAKE_C_COMPILER "/usr/bin/x86_64-linux-gnu-gcc-7")
+set(CMAKE_CXX_COMPILER "/usr/bin/x86_64-linux-gnu-g++-7")
+
 # compile flags
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_FLAGS   "-g")                     # 调试信息

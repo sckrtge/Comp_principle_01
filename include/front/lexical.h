@@ -26,6 +26,9 @@
 #include<string>
 #include<fstream>
 #include<iostream>
+#include <map>
+#include <cctype>
+#include <cassert>
 
 namespace frontend {
 
@@ -37,10 +40,51 @@ enum class State {
     FloatLiteral,       // float literal, like '0.1'
     op                  // operators and '{', '[', '(', ',' ...
 };
-std::string toString(State);
- 
+
 // we should distinguish the keyword and a variable(function) name, so we need a keyword table here
 extern std::set<std::string> keywords;
+
+static const std::map<std::string, TokenType> keywordMap = {
+    {"const", TokenType::CONSTTK},
+    {"void", TokenType::VOIDTK},
+    {"int", TokenType::INTTK},
+    {"float", TokenType::FLOATTK},
+    {"if", TokenType::IFTK},
+    {"else", TokenType::ELSETK},
+    {"while", TokenType::WHILETK},
+    {"continue", TokenType::CONTINUETK},
+    {"break", TokenType::BREAKTK},
+    {"return", TokenType::RETURNTK}
+};
+
+static const std::map<std::string, TokenType> operatorMap = {
+    {"<=", TokenType::LEQ},
+    {">=", TokenType::GEQ},
+    {"==", TokenType::EQL},
+    {"!=", TokenType::NEQ},
+    {"&&", TokenType::AND},
+    {"||", TokenType::OR},
+    {"+", TokenType::PLUS},
+    {"-", TokenType::MINU},
+    {"*", TokenType::MULT},
+    {"/", TokenType::DIV},
+    {"%", TokenType::MOD},
+    {"<", TokenType::LSS},
+    {">", TokenType::GTR},
+    {":", TokenType::COLON},
+    {"=", TokenType::ASSIGN},
+    {";", TokenType::SEMICN},
+    {",", TokenType::COMMA},
+    {"(", TokenType::LPARENT},
+    {")", TokenType::RPARENT},
+    {"[", TokenType::LBRACK},
+    {"]", TokenType::RBRACK},
+    {"{", TokenType::LBRACE},
+    {"}", TokenType::RBRACE},
+    {"!", TokenType::NOT}
+};
+
+std::string toString(State);
 
 // definition of DFA
 struct DFA {
@@ -64,8 +108,29 @@ struct DFA {
      * @param[out] buf: the output Token buffer
      * @return  return true if a Token is produced, the buf is valid then
      */
-    bool next(char input, Token& buf);
+    
+    TokenType str2operator(const std::string &str) {
+        return operatorMap.find(str)->second;
+    }
+    
+    TokenType str2keyword(const std::string &str) {
+        if(keywordMap.find(str) == keywordMap.end())
+            return TokenType::IDENFR;
+        return keywordMap.find(str)->second;
+    }
+    
+    bool change_status(Token &buf, State state, std::string str, bool output=false, TokenType type=TokenType::IDENFR, std::string value="") {
+        cur_state = state;
+        cur_str = str;
+        if(output) {
+            buf.type = type;
+            buf.value = value;
+        }
+        return output;
+    };
 
+    bool next(char input, Token& buf) ;
+    
     /**
      * @brief reset the DFA state to begin
      */
@@ -82,7 +147,7 @@ struct Scanner {
      * @brief constructor
      * @param[in] filename: the input file  
      */
-    Scanner(std::string filename); 
+    Scanner(std::string filename);
     
     /**
      * @brief destructor, close the file

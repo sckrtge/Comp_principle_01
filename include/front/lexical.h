@@ -109,25 +109,11 @@ struct DFA {
      * @return  return true if a Token is produced, the buf is valid then
      */
     
-    TokenType str2operator(const std::string &str) {
-        return operatorMap.find(str)->second;
-    }
+    TokenType str2operator(const std::string &str);
     
-    TokenType str2keyword(const std::string &str) {
-        if(keywordMap.find(str) == keywordMap.end())
-            return TokenType::IDENFR;
-        return keywordMap.find(str)->second;
-    }
+    TokenType str2keyword(const std::string &str);
     
-    bool change_status(Token &buf, State state, std::string str, bool output=false, TokenType type=TokenType::IDENFR, std::string value="") {
-        cur_state = state;
-        cur_str = str;
-        if(output) {
-            buf.type = type;
-            buf.value = value;
-        }
-        return output;
-    };
+    bool change_status(Token &buf, State state, std::string str, bool output, TokenType type, std::string value);
 
     bool next(char input, Token& buf) ;
     

@@ -41,10 +41,34 @@ bool isSymbolString(std::string s) {
     return s == "<=" || s == "==" || s == ">=" || s == "!=" || s == "&&" || s == "||";
 }
 
-bool isempty(char c) {
-    return c == ' ' || c == '\n' || c == '\r';
+bool isalldigit(char c)
+{
+    return std::isdigit(c) || c == 'x' || c == 'X' || c == 'b' || c == 'B' || (c >= 'a' && c <= 'f');
 }
 
+bool isempty(char c) {
+    return c == ' ' || c == '\n' || c == '\r' || c == '\t' || c == '\v' || c == '\f';
+}
+
+frontend::TokenType frontend::DFA::str2operator(const std::string &str) {
+    return operatorMap.find(str)->second;
+}
+
+frontend::TokenType frontend::DFA::str2keyword(const std::string &str) {
+    if(keywordMap.find(str) == keywordMap.end())
+        return TokenType::IDENFR;
+    return keywordMap.find(str)->second;
+}
+
+bool frontend::DFA::change_status(Token &buf, State state, std::string str, bool output=false, TokenType type=TokenType::IDENFR, std::string value="") {
+    cur_state = state;
+    cur_str = str;
+    if(output) {
+        buf.type = type;
+        buf.value = value;
+    }
+    return output;
+};
 
 
 bool frontend::DFA::next(char input, Token& buf) {
@@ -80,7 +104,7 @@ bool frontend::DFA::next(char input, Token& buf) {
                 return change_status(buf, State::Ident, cur_str + sinput);
             }
             else if(isempty(input)) {
-                return change_status(buf, State::Empty,sinput, true, str2keyword(cur_str), cur_str);
+                return change_status(buf, State::Empty, sinput, true, str2keyword(cur_str), cur_str);
             }
             break;
         }
@@ -88,7 +112,7 @@ bool frontend::DFA::next(char input, Token& buf) {
             if(isSymbolChar(input)) {
                 return change_status(buf, State::op, sinput, true, TokenType::INTLTR, cur_str);
             }
-            else if(std::isdigit(input)) {
+            else if(isalldigit(input)) {
                 return change_status(buf, State::IntLiteral, cur_str + sinput);
             }
             else if(input == '.') {
@@ -161,15 +185,80 @@ frontend::Scanner::~Scanner() {
     fin.close();
 }
 
+std::string preprossing(std::istream &fin) {
+    std::string code((std::istreambuf_iterator<char>(fin)),
+                    std::istreambuf_iterator<char>());
+    std::string output;
+    
+    enum State { NORMAL, LINE_COMMENT, BLOCK_COMMENT, STRING_LITERAL, CHAR_LITERAL };
+    State state = NORMAL;
+    
+    for (size_t i = 0; i < code.size(); ++i) {
+        char c = code[i];
+        if (state == NORMAL) {
+            if (c == '/' && i + 1 < code.size()) {
+                if (code[i+1] == '/') {
+                    state = LINE_COMMENT;
+                    ++i; // 跳过第二个 '/'
+                    continue;
+                } else if (code[i+1] == '*') {
+                    state = BLOCK_COMMENT;
+                    ++i; // 跳过 '*'
+                    continue;
+                }
+            }
+            if (c == '"') { 
+                state = STRING_LITERAL; 
+            } else if (c == '\'') { 
+                state = CHAR_LITERAL; 
+            }
+            output.push_back(c);
+        }
+        else if (state == LINE_COMMENT) {
+            if (c == '\n') {
+                state = NORMAL;
+                output.push_back(c);
+            }
+            // 其他字符跳过
+        }
+        else if (state == BLOCK_COMMENT) {
+            if (c == '*' && i + 1 < code.size() && code[i+1] == '/') {
+                state = NORMAL;
+                ++i; // 跳过 '/'
+            }
+            // 块注释内容不输出
+        }
+        else if (state == STRING_LITERAL) {
+            output.push_back(c);
+            if (c == '\\' && i + 1 < code.size()) {
+                output.push_back(code[++i]);  // 处理转义字符
+            } else if (c == '"') {
+                state = NORMAL;
+            }
+        }
+        else if (state == CHAR_LITERAL) {
+            output.push_back(c);
+            if (c == '\\' && i + 1 < code.size()) {
+                output.push_back(code[++i]);
+            } else if (c == '\'') {
+                state = NORMAL;
+            }
+        }
+    }
+    
+    return output;
+}
+
 std::vector<frontend::Token> frontend::Scanner::run() {
     std::vector<Token> tokens;
-    char input;
     DFA dfa;
-    Token buf;
+    Token tk;
     dfa.reset();
-    while(fin>>input){
-        if(dfa.next(input, buf)) {
-            tokens.push_back(buf);
+    std::string remove_comment_s = preprossing(fin);
+    remove_comment_s.push_back('\n');
+    for(auto input: remove_comment_s) {
+        if(dfa.next(input, tk)) {
+            tokens.push_back(tk);
         }
     }
     return tokens;

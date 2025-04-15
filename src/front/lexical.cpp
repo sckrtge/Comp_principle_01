@@ -30,8 +30,6 @@ frontend::DFA::DFA(): cur_state(frontend::State::Empty), cur_str() {}
 
 frontend::DFA::~DFA() {}
 
-
-
 bool isSymbolChar(char c) {
     return c == '+' || c == '-' || c == '*' || c == '/' || c == '%' ||
         c == '<' || c == '>' || c == ':' || c == '=' || c == ';' ||

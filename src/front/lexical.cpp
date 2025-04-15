@@ -52,7 +52,6 @@ bool frontend::DFA::next(char input, Token& buf) {
 #include<iostream>
     std::cout << "in state [" << toString(cur_state) << "], input = \'" << input << "\', str = " << cur_str << "\t";
 #endif
-    TODO;
     std::string sinput(1,input);
     switch(cur_state) {
         case State::Empty: {
@@ -137,10 +136,10 @@ bool frontend::DFA::next(char input, Token& buf) {
             break;
         }
         default:
-        throw std::runtime_error("in DFA next: State type wrong!");
+        assert(0&&"in DFA next: State type wrong!");
         return 0;
     }
-    throw std::runtime_error("in DFA next:input wrong!");
+    assert(0&&"in DFA next:input wrong!");
     return 0;
 #ifdef DEBUG_DFA
     std::cout << "next state is [" << toString(cur_state) << "], next str = " << cur_str << "\t, ret = " << ret << std::endl;
@@ -163,7 +162,6 @@ frontend::Scanner::~Scanner() {
 }
 
 std::vector<frontend::Token> frontend::Scanner::run() {
-    TODO;
     std::vector<Token> tokens;
     char input;
     DFA dfa;

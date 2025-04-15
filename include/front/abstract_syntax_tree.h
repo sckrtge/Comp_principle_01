@@ -31,7 +31,7 @@ namespace frontend {
 // enumerate for node type
 enum class NodeType {
     TERMINAL,       // terminal lexical unit
-    COMPUINT,
+    COMPUNIT,
     DECL,
     FUNCDEF,
     CONSTDECL,

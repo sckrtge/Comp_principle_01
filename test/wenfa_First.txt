@@ -1,0 +1,115 @@
+CompUnit:
+First(CompUnit) = { 'const', 'int', 'float', 'void' }
+
+解析：CompUnit可以推导出Decl或FuncDef。Decl的First集是{const, int, float}，FuncDef的First集是{void, int, float}，合并后得到。
+
+Decl:
+First(Decl) = { 'const', 'int', 'float' }
+
+解析：Decl可以推导出ConstDecl或VarDecl。ConstDecl以const开头，VarDecl以int或float开头。
+
+ConstDecl:
+First(ConstDecl) = { 'const' }
+
+解析：产生式以终结符const开头。
+
+BType:
+First(BType) = { 'int', 'float' }
+
+解析：直接推导出终结符int或float。
+
+ConstDef:
+First(ConstDef) = { Ident }
+
+解析：产生式以Ident开头。
+
+ConstInitVal:
+First(ConstInitVal) = { '(', Ident, IntConst, floatConst, '+', '-', '!', '{' }
+
+解析：可能以ConstExp的First集（(, Ident, IntConst, floatConst, +, -, !）或终结符{开头。
+
+VarDecl:
+First(VarDecl) = { 'int', 'float' }
+
+解析：产生式以BType开头，BType的First集是{int, float}。
+
+VarDef:
+First(VarDef) = { Ident }
+
+解析：产生式以Ident开头。
+
+InitVal:
+First(InitVal) = { '(', Ident, IntConst, floatConst, '+', '-', '!', '{' }
+
+解析：类似ConstInitVal，但包含Exp的First集和{。
+
+FuncDef:
+First(FuncDef) = { 'void', 'int', 'float' }
+
+解析：产生式以FuncType开头，FuncType的First集是{void, int, float}。
+
+FuncType:
+First(FuncType) = { 'void', 'int', 'float' }
+
+解析：直接推导出终结符void、int或float。
+
+FuncFParam:
+First(FuncFParam) = { 'int', 'float' }
+
+解析：产生式以BType开头，BType的First集是{int, float}。
+
+FuncFParams:
+First(FuncFParams) = { 'int', 'float' }
+
+解析：产生式以FuncFParam开头，其First集是{int, float}。
+
+Block:
+First(Block) = { '{' }
+
+解析：产生式以终结符{开头。
+
+BlockItem:
+First(BlockItem) = { 'const', 'int', 'float', Ident, '{', 'if', 'while', 'break', 'continue', 'return', '(', IntConst, floatConst, '+', '-', '!', ';' }
+
+解析：BlockItem可以是Decl或Stmt。Decl的First集是{const, int, float}，Stmt的First集包含更多符号。
+
+Stmt:
+First(Stmt) = { Ident, '{', 'if', 'while', 'break', 'continue', 'return', '(', IntConst, floatConst, '+', '-', '!', ';' }
+
+解析：包含赋值语句、Block、控制语句（if, while等）和表达式语句的First符号。
+
+Cond:
+First(Cond) = { '(', Ident, IntConst, floatConst, '+', '-', '!' }
+
+解析：Cond是LOrExp，其First集与表达式相关符号一致。
+
+LVal:
+First(LVal) = { Ident }
+
+解析：产生式以Ident开头。
+
+Number:
+First(Number) = { IntConst, floatConst }
+
+解析：直接推导出IntConst或floatConst。
+
+PrimaryExp:
+First(PrimaryExp) = { '(', Ident, IntConst, floatConst }
+
+解析：可能以括号、LVal或Number开头。
+
+UnaryExp:
+First(UnaryExp) = { '(', Ident, IntConst, floatConst, '+', '-', '!' }
+
+解析：包含PrimaryExp、函数调用（Ident(）或一元操作符（+, -, !）。
+
+FuncRParams:
+First(FuncRParams) = { '(', Ident, IntConst, floatConst, '+', '-', '!' }
+
+解析：与Exp的First集相同。
+
+MulExp, AddExp, RelExp, EqExp, LAndExp, LOrExp, ConstExp:
+均与UnaryExp的First集相同：
+First = { '(', Ident, IntConst, floatConst, '+', '-', '!' }
+
+解析：这些表达式均从底层运算符逐步组合，最终依赖UnaryExp的First集。

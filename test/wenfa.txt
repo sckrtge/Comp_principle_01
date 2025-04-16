@@ -1,0 +1,122 @@
+CompUnit -> (Decl | FuncDef) [CompUnit]
+
+Decl -> ConstDecl | VarDecl
+
+ConstDecl -> 'const' BType ConstDef { ',' ConstDef } ';'
+
+BType -> 'int' | 'float'
+
+ConstDef -> Ident { '[' ConstExp ']' } '=' ConstInitVal
+
+ConstInitVal -> ConstExp | '{' [ ConstInitVal { ',' ConstInitVal } ] '}'
+
+VarDecl -> BType VarDef { ',' VarDef } ';'
+
+VarDef -> Ident { '[' ConstExp ']' } [ '=' InitVal ]
+
+InitVal -> Exp | '{' [ InitVal { ',' InitVal } ] '}'
+
+FuncDef -> FuncType Ident '(' [FuncFParams] ')' Block
+
+FuncType -> 'void' | 'int' | 'float'
+
+FuncFParam -> BType Ident ['[' ']' { '[' Exp ']' }]
+
+FuncFParams -> FuncFParam { ',' FuncFParam }
+
+Block -> '{' { BlockItem } '}'
+
+BlockItem -> Decl | Stmt
+
+Stmt -> LVal '=' Exp ';' | Block | 'if' '(' Cond ')' Stmt [ 'else' Stmt ] | 'while' '(' Cond ')' Stmt | 'break' ';' | 'continue' ';' | 'return' [Exp] ';' | [Exp] ';'
+
+Cond -> LOrExp
+
+LVal -> Ident {'[' Exp ']'}
+
+Number -> IntConst | floatConst
+
+PrimaryExp -> '(' Exp ')' | LVal | Number
+
+UnaryExp -> PrimaryExp | Ident '(' [FuncRParams] ')' | UnaryOp UnaryExp
+
+UnaryOp -> '+' | '-' | '!'
+
+FuncRParams -> Exp { ',' Exp }
+
+MulExp -> UnaryExp { ('*' | '/' | '%') UnaryExp }
+
+AddExp -> MulExp { ('+' | '-') MulExp }
+
+RelExp -> AddExp { ('<' | '>' | '<=' | '>=') AddExp }
+
+EqExp -> RelExp { ('==' | '!=') RelExp }
+
+LAndExp -> EqExp [ '&&' LAndExp ]
+
+LOrExp -> LAndExp [ '||' LOrExp ]
+
+ConstExp -> AddExp
+
+First集：
+
+CompUnit = { 'const', 'int', 'float', 'void' }
+
+Decl = { 'const', 'int', 'float' }
+
+ConstDecl = { 'const' }
+
+BType = { 'int', 'float' }
+
+ConstDef = { Ident }
+
+ConstInitVal = { '(', Ident, IntConst, floatConst, '+', '-', '!', '{' }
+
+VarDecl = { 'int', 'float' }
+
+VarDef = { Ident }
+
+InitVal = { '(', Ident, IntConst, floatConst, '+', '-', '!', '{' }
+
+FuncDef = { 'void', 'int', 'float' }
+
+FuncType = { 'void', 'int', 'float' }
+
+FuncFParam = { 'int', 'float' }
+
+FuncFParams = { 'int', 'float' }
+
+Block = { '{' }
+
+BlockItem = { 'const', 'int', 'float' } ∪ FIRST(Stmt)
+
+Stmt = { '(', Ident, IntConst, floatConst, '+', '-', '!', '{', 'if', 'while', 'break', 'continue', 'return', ';' }
+
+Cond = { '(', Ident, IntConst, floatConst, '+', '-', '!', }
+  （即 F）
+
+LVal = { Ident }
+
+Number = { IntConst, floatConst }
+
+PrimaryExp = { '(', Ident, IntConst, floatConst }
+
+UnaryExp = { '(', Ident, IntConst, floatConst, '+', '-', '!' }
+
+UnaryOp = { '+', '-', '!' }
+
+FuncRParams = { '(', Ident, IntConst, floatConst, '+', '-', '!' }
+
+MulExp = { '(', Ident, IntConst, floatConst, '+', '-', '!' }
+
+AddExp = { '(', Ident, IntConst, floatConst, '+', '-', '!' }
+
+RelExp = { '(', Ident, IntConst, floatConst, '+', '-', '!' }
+
+EqExp = { '(', Ident, IntConst, floatConst, '+', '-', '!' }
+
+LAndExp = { '(', Ident, IntConst, floatConst, '+', '-', '!' }
+
+LOrExp = { '(', Ident, IntConst, floatConst, '+', '-', '!' }
+
+ConstExp = { '(', Ident, IntConst, floatConst, '+', '-', '!' }

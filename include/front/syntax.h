@@ -50,6 +50,7 @@ struct Parser {
      */
     void log(AstNode* node);
     
+    bool isExp();
     bool parseCompUnit(CompUnit* root);
     bool parseDecl(Decl* root);
     bool parseFuncDef(FuncDef* root);

@@ -1,0 +1,57 @@
+CompUnit → {const, int, float, void}
+
+Decl → {const, int, float}
+
+ConstDecl → {const}
+
+BType → {int, float}
+
+ConstDef → {Ident}
+
+ConstInitVal → {(, Ident, IntConst, floatConst, +, -, !, { }
+
+VarDecl → {int, float}
+
+VarDef → {Ident}
+
+InitVal → {(, Ident, IntConst, floatConst, +, -, !, { }
+
+FuncDef → {void, int, float}
+
+FuncType → {void, int, float}
+
+FuncFParam → {int, float}
+
+FuncFParams → {int, float}
+
+Block → { { }
+
+BlockItem → {const, int, float, Ident, {, if, while, break, continue, return, (, IntConst, floatConst, +, -, !, ; }
+
+Stmt → {Ident, {, if, while, break, continue, return, (, IntConst, floatConst, +, -, !, ; }
+
+LVal → {Ident}
+
+Number → {IntConst, floatConst}
+
+PrimaryExp → {(, Ident, IntConst, floatConst}
+
+UnaryExp → {(, Ident, IntConst, floatConst, +, -, !}
+
+FuncRParams → {(, Ident, IntConst, floatConst, +, -, !}
+
+MulExp → 同 UnaryExp
+
+AddExp → 同 UnaryExp
+
+RelExp → 同 AddExp
+
+EqExp → 同 RelExp
+
+LAndExp → 同 EqExp
+
+LOrExp → 同 LAndExp
+
+Cond → 同 LOrExp
+
+ConstExp → 同 AddExp

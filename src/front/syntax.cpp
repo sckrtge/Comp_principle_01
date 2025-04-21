@@ -36,7 +36,7 @@ frontend::Term* frontend::Parser::parseTerm(AstNode *parent, TokenType expected)
 }
 
 frontend::CompUnit* Parser::get_abstract_syntax_tree(){
-    CompUnit* root;
+    CompUnit* root = nullptr;
     if(parseCompUnit(root) == false) {
         assert(0 && "get_abstruct_syntax_tree error");
     }
@@ -444,7 +444,7 @@ bool frontend::Parser::parseStmt(Stmt* root) {
             PARSE_TOKEN(LPARENT);
         }
         else return false;
-        if(isExp) {
+        if(isExp()) {
             PARSE(son, Cond);
             error &= parseCond(son);
         }
@@ -479,7 +479,7 @@ bool frontend::Parser::parseStmt(Stmt* root) {
             PARSE_TOKEN(LPARENT);
         }
         else return false;
-        if(isExp) {
+        if(isExp()) {
             PARSE(son, Cond);
             error &= parseCond(son);
         }

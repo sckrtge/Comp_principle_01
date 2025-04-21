@@ -28,7 +28,10 @@ Block -> '{' { BlockItem } '}'
 
 BlockItem -> Decl | Stmt
 
-Stmt -> LVal '=' Exp ';' | Block | 'if' '(' Cond ')' Stmt [ 'else' Stmt ] | 'while' '(' Cond ')' Stmt | 'break' ';' | 'continue' ';' | 'return' [Exp] ';' | [Exp] ';'
+Stmt -> LVal '=' Exp ';' | Block 
+| 'if' '(' Cond ')' Stmt [ 'else' Stmt ]
+| 'while' '(' Cond ')' Stmt | 'break' ';' | 'continue' ';'
+| 'return' [Exp] ';' | [Exp] ';'
 
 Exp -> AddExp
 
@@ -40,7 +43,8 @@ Number -> IntConst | floatConst
 
 PrimaryExp -> '(' Exp ')' | LVal | Number
 
-UnaryExp -> PrimaryExp | Ident '(' [FuncRParams] ')' | UnaryOp UnaryExp
+UnaryExp -> PrimaryExp | Ident '(' [FuncRParams] ')' 
+| UnaryOp UnaryExp
 
 UnaryOp -> '+' | '-' | '!'
 

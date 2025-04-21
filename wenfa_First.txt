@@ -55,3 +55,156 @@ LOrExp → 同 LAndExp
 Cond → 同 LOrExp
 
 ConstExp → 同 AddExp
+
+以下是使用 **LL(K) 递归下降法** 分析该文法的关键步骤和实现思路：
+
+---
+
+### **1. 判断文法的 LL(1) 兼容性**
+首先需确认文法是否满足 **LL(1)** 条件（即每个非终结符的所有产生式的 **First 集互不相交**）。根据提供的 First 集分析，部分规则存在潜在冲突，需特殊处理：
+
+#### **冲突点与解决方案：**
+- **CompUnit → (Decl | FuncDef):**
+  - Decl 的 First 集：`{const, int, float}`
+  - FuncDef 的 First 集：`{void, int, float}`
+  - **冲突**：当首符号为 `int` 或 `float` 时，无法确定选择 Decl 还是 FuncDef。
+  - **解决方案**：向前多看一个符号（LL(2)）。例如：
+    - 若 `int` 后紧跟 `(` 或 `Ident(`，则为 FuncDef。
+    - 否则为 Decl（变量或常量声明）。
+
+- **Stmt → LVal '=' Exp ';' | ... :**
+  - LVal 的 First 集为 `{Ident}`，与其他语句（如 `if`, `while` 等）无冲突，可通过首符号直接区分。
+
+---
+
+### **2. 递归下降函数设计**
+为每个非终结符编写一个解析函数，根据当前 token 选择产生式。以下为关键非终结符的实现示例：
+
+#### **(1) 顶层结构：CompUnit**
+```python
+def parse_CompUnit():
+    while has_next_token():
+        # 根据首符号选择 Decl 或 FuncDef
+        token = peek_token()
+        if token in {'const', 'int', 'float'}:
+            # 需进一步判断是 Decl 还是 FuncDef
+            if is_next_func_def():  # 向前多看判断是否为函数定义
+                parse_FuncDef()
+            else:
+                parse_Decl()
+        elif token == 'void':
+            parse_FuncDef()
+        else:
+            error("Unexpected token in CompUnit")
+```
+
+#### **(2) 表达式：Exp → AddExp**
+直接委托给 `AddExp`，无需额外逻辑：
+```python
+def parse_Exp():
+    parse_AddExp()
+```
+
+#### **(3) 复杂表达式：AddExp → MulExp { ('+' | '-') MulExp }**
+用循环处理连续的运算符：
+```python
+def parse_AddExp():
+    parse_MulExp()
+    while peek_token() in {'+', '-'}:
+        consume_token()  # 吃掉 '+' 或 '-'
+        parse_MulExp()
+```
+
+#### **(4) 函数参数列表：FuncFParams → FuncFParam { ',' FuncFParam }**
+用循环处理逗号分隔的参数：
+```python
+def parse_FuncFParams():
+    parse_FuncFParam()
+    while peek_token() == ',':
+        consume_token(',')
+        parse_FuncFParam()
+```
+
+#### **(5) 语句：Stmt（需处理多种分支）**
+```python
+def parse_Stmt():
+    token = peek_token()
+    if token == 'if':
+        parse_IfStmt()
+    elif token == 'while':
+        parse_WhileStmt()
+    elif token == 'return':
+        parse_ReturnStmt()
+    elif token == '{':
+        parse_Block()
+    elif token == 'Ident':
+        # 可能是 LVal '=' Exp 或函数调用（需进一步判断）
+        if is_assignment():  # 向前多看判断是否有 '='
+            parse_Assignment()
+        else:
+            parse_FuncCall()
+    # ... 其他分支
+```
+
+---
+
+### **3. 处理可选符号 `[ ]` 和 `{ }`**
+- **可选符号 `[X]`**：通过判断当前 token 是否属于 `X` 的 First 集决定是否解析。
+  ```python
+  def parse_optional_X():
+      if peek_token() in First(X):
+          parse_X()
+  ```
+
+- **重复符号 `{X}`**：用循环处理，直到不再满足条件。
+  ```python
+  def parse_repeat_X():
+      while peek_token() in First(X):
+          parse_X()
+  ```
+
+---
+
+### **4. 错误恢复与同步**
+- **错误检测**：当遇到不在预期 First 集中的 token 时，抛出错误。
+- **同步机制**：在关键位置（如语句末尾、块结尾）设置同步点，跳过无效 token 直到找到同步符号（如 `;`、`}`）。
+
+---
+
+### **5. 关键实现细节**
+1. **符号表管理**：
+   - 在解析变量/函数声明时，记录标识符的类型和作用域。
+   - 用于后续语义检查（如变量未定义、类型不匹配）。
+
+2. **数组与函数参数处理**：
+   - 解析多维数组时，需递归处理 `[ConstExp]` 或 `[Exp]`。
+   - 函数参数需区分普通参数和数组参数（如 `int a[]` vs `int a[][10]`）。
+
+3. **表达式优先级**：
+   - 通过递归层级隐式实现优先级。例如：
+     ```python
+     parse_AddExp() → parse_MulExp() → parse_UnaryExp() → ...
+     ```
+   - 运算符优先级由文法层级决定（如 `*` 优先级高于 `+`）。
+
+---
+
+### **6. 示例：解析 If 语句**
+```python
+def parse_IfStmt():
+    consume_token('if')
+    consume_token('(')
+    parse_Cond()
+    consume_token(')')
+    parse_Stmt()
+    if peek_token() == 'else':
+        consume_token('else')
+        parse_Stmt()
+```
+
+---
+
+### **总结**
+- **LL(K) 适应性**：该文法大部分规则适合 LL(1)，但少数地方（如 CompUnit 的 Decl/FuncDef 选择）需 LL(2) 或通过上下文判断。
+- **递归下降优势**：代码结构清晰，易于实现语义动作（如生成 AST）。
+- **注意事项**：需严格处理 First 集冲突和左递归问题，必要时调整文法规则。

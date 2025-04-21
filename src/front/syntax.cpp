@@ -20,8 +20,8 @@ Parser::~Parser() {}
 bool frontend::Parser::isExp() {
     return CUR_TOKEN_IS(LPARENT) || CUR_TOKEN_IS(IDENFR) 
     || CUR_TOKEN_IS(INTLTR) || CUR_TOKEN_IS(FLOATLTR) 
-    || CUR_TOKEN_IS(LPARENT) || CUR_TOKEN_IS(PLUS) 
-    || CUR_TOKEN_IS(MINU) || CUR_TOKEN_IS(NOT);
+    || CUR_TOKEN_IS(PLUS) || CUR_TOKEN_IS(MINU) 
+    || CUR_TOKEN_IS(NOT);
 }
 
 frontend::Term* frontend::Parser::parseTerm(AstNode *parent, TokenType expected) {
@@ -372,79 +372,494 @@ bool frontend::Parser::parseFuncFParam(FuncFParam* root) {
 }
 
 bool frontend::Parser::parseFuncFParams(FuncFParams* root) {
-    
+    bool error = true;
+    if(CUR_TOKEN_IS(INTTK) || CUR_TOKEN_IS(FLOATTK)) {
+        PARSE(son, FuncFParam);
+        error &= parseFuncFParam(son);
+    }
+    else return false;
+    while(index < token_stream.size()) {
+        if(CUR_TOKEN_IS(COMMA)) {
+            PARSE_TOKEN(COMMA);
+        }
+        else break;
+        if(CUR_TOKEN_IS(INTTK) || CUR_TOKEN_IS(FLOATTK)) {
+            PARSE(son, FuncFParam);
+            error &= parseFuncFParam(son);
+        }
+        else return false;
+    }
+    return error;
 }
 
 bool frontend::Parser::parseBlock(Block* root) {
-    
+    bool error = true;
+    if(CUR_TOKEN_IS(LBRACE)) {
+        PARSE_TOKEN(LBRACE);
+    }
+    else return false;
+    while(index < token_stream.size()) {
+        if(isExp() || CUR_TOKEN_IS(CONSTTK) || CUR_TOKEN_IS(INTTK)
+        || CUR_TOKEN_IS(FLOATTK) || CUR_TOKEN_IS(LBRACE) || CUR_TOKEN_IS(IFTK)
+        || CUR_TOKEN_IS(WHILETK) || CUR_TOKEN_IS(BREAKTK) || CUR_TOKEN_IS(CONTINUETK)
+        || CUR_TOKEN_IS(RETURNTK) || CUR_TOKEN_IS(SEMICN)) {
+            PARSE(son, BlockItem);
+            error &= parseBlockItem(son);
+        }
+        else break;
+    }
+    if(CUR_TOKEN_IS(RBRACE)) {
+        PARSE_TOKEN(RBRACE);
+    }
+    else return false;
+    return error;
 }
 
 bool frontend::Parser::parseBlockItem(BlockItem* root) {
-    
+    bool error = true;
+    if(CUR_TOKEN_IS(CONSTTK) || CUR_TOKEN_IS(INTTK)
+    || CUR_TOKEN_IS(FLOATTK)) {
+        PARSE(son, Decl);
+        error &= parseDecl(son);
+    }
+    else if(isExp() || CUR_TOKEN_IS(LBRACE) || CUR_TOKEN_IS(IFTK)
+    || CUR_TOKEN_IS(WHILETK) || CUR_TOKEN_IS(BREAKTK) || CUR_TOKEN_IS(CONTINUETK)
+    || CUR_TOKEN_IS(RETURNTK) || CUR_TOKEN_IS(SEMICN)) {
+        PARSE(son, Stmt);
+        error &= parseStmt(son);
+    }
+    else return false;
+    return error;
 }
 
 bool frontend::Parser::parseStmt(Stmt* root) {
-    
+    bool error = true;
+    if(CUR_TOKEN_IS(LBRACE)) {
+        PARSE(son, Block);
+        parseBlock(son);
+    }
+    else if(CUR_TOKEN_IS(IFTK)) {
+        PARSE_TOKEN(IFTK);
+        if(CUR_TOKEN_IS(LPARENT)) {
+            PARSE_TOKEN(LPARENT);
+        }
+        else return false;
+        if(isExp) {
+            PARSE(son, Cond);
+            error &= parseCond(son);
+        }
+        else return false;
+        if(CUR_TOKEN_IS(RPARENT)) {
+            PARSE_TOKEN(RPARENT);
+        }
+        else return false;
+        if(isExp() || CUR_TOKEN_IS(LBRACE) || CUR_TOKEN_IS(IFTK)
+        || CUR_TOKEN_IS(WHILETK) || CUR_TOKEN_IS(BREAKTK) || CUR_TOKEN_IS(CONTINUETK)
+        || CUR_TOKEN_IS(RETURNTK) || CUR_TOKEN_IS(SEMICN)) {
+            PARSE(son, Stmt);
+            error &= parseStmt(son);
+        }
+        else return false;
+        if(index < token_stream.size()) {
+            if(CUR_TOKEN_IS(ELSETK)) {
+                PARSE_TOKEN(ELSETK);
+                if(isExp() || CUR_TOKEN_IS(LBRACE) || CUR_TOKEN_IS(IFTK)
+                || CUR_TOKEN_IS(WHILETK) || CUR_TOKEN_IS(BREAKTK) || CUR_TOKEN_IS(CONTINUETK)
+                || CUR_TOKEN_IS(RETURNTK) || CUR_TOKEN_IS(SEMICN)) {
+                    PARSE(son, Stmt);
+                    error &= parseStmt(son);
+                }
+                else return false;
+            }
+        }
+    }
+    else if(CUR_TOKEN_IS(WHILETK)) {
+        PARSE_TOKEN(WHILETK);
+        if(CUR_TOKEN_IS(LPARENT)) {
+            PARSE_TOKEN(LPARENT);
+        }
+        else return false;
+        if(isExp) {
+            PARSE(son, Cond);
+            error &= parseCond(son);
+        }
+        else return false;
+        if(CUR_TOKEN_IS(RPARENT)) {
+            PARSE_TOKEN(RPARENT);
+        }
+        else return false;
+        if(isExp() || CUR_TOKEN_IS(LBRACE) || CUR_TOKEN_IS(IFTK)
+        || CUR_TOKEN_IS(WHILETK) || CUR_TOKEN_IS(BREAKTK) || CUR_TOKEN_IS(CONTINUETK)
+        || CUR_TOKEN_IS(RETURNTK) || CUR_TOKEN_IS(SEMICN)) {
+            PARSE(son, Stmt);
+            error &= parseStmt(son);
+        }
+        else return false;
+    }
+    else if(CUR_TOKEN_IS(BREAKTK)) {
+        PARSE_TOKEN(BREAKTK);
+        if(CUR_TOKEN_IS(SEMICN)) {
+            PARSE_TOKEN(SEMICN);
+        }
+        else return false;
+    }
+    else if(CUR_TOKEN_IS(CONTINUETK)) {
+        PARSE_TOKEN(CONTINUETK);
+        if(CUR_TOKEN_IS(SEMICN)) {
+            PARSE_TOKEN(SEMICN);
+        }
+        else return false;
+    }
+    else if(CUR_TOKEN_IS(RETURNTK)) {
+        PARSE_TOKEN(RETURNTK);
+        if(index < token_stream.size()) {
+            if(isExp()) {
+                PARSE(son, Exp);
+                error &= parseExp(son);
+            }
+        }
+        if(CUR_TOKEN_IS(SEMICN)) {
+            PARSE_TOKEN(SEMICN);
+        }
+        else return false;
+    }
+    else if(isExp() || CUR_TOKEN_IS(SEMICN)) {
+        if(CUR_TOKEN_IS(IDENFR) && !NXT_TOKEN_IS(LPARENT, 1)) {
+            PARSE(son, LVal);
+            error &= parseLVal(son);
+            if(CUR_TOKEN_IS(ASSIGN)) {
+                PARSE_TOKEN(ASSIGN);
+            }
+            else return false;
+            if(isExp()) {
+                PARSE(son,Exp);
+                error &= parseExp(son);
+            }
+            else return false;
+            if(CUR_TOKEN_IS(SEMICN)) {
+                PARSE_TOKEN(SEMICN);
+            }
+            else return false;
+        }
+        else {
+            if(index < token_stream.size()) {
+                if(isExp()) {
+                    PARSE(son, Exp);
+                    error &= parseExp(son);
+                }
+            }
+            if(CUR_TOKEN_IS(SEMICN)) {
+                PARSE_TOKEN(SEMICN);
+            }
+            else return false;
+        }
+    }
+    return error;
 }
 
 bool frontend::Parser::parseExp(Exp* root) {
-    
+    bool error = true;
+    if(isExp()) {
+        PARSE(son, AddExp);
+        error &= parseAddExp(son);
+    }
+    else return false;
+    return error;
 }
 
 bool frontend::Parser::parseCond(Cond* root) {
-    
+    bool error = true;
+    if(isExp()) {
+        PARSE(son, LOrExp);
+        error &= parseLOrExp(son);
+    }
+    else return false;
+    return error;
 }
 
 bool frontend::Parser::parseLVal(LVal* root) {
-    
+    bool error = true;
+    if(CUR_TOKEN_IS(IDENFR)) {
+        PARSE_TOKEN(IDENFR);
+        while(index < token_stream.size()) {
+            if(CUR_TOKEN_IS(LBRACK)) {
+                PARSE_TOKEN(LBRACK);
+            }
+            else break;
+            if(isExp()) {
+                PARSE(son,Exp);
+                error &= parseExp(son);
+            }
+            else return false;
+            if(CUR_TOKEN_IS(RBRACK)) {
+                PARSE_TOKEN(RBRACK);
+            }
+            else return false;
+        }
+    }
+    else return false;
+    return error;
 }
 
 bool frontend::Parser::parseNumber(Number* root) {
-    
+    bool error = true;
+    if(CUR_TOKEN_IS(INTLTR)) {
+        PARSE_TOKEN(INTLTR);
+    }
+    else if(CUR_TOKEN_IS(FLOATLTR)) {
+        PARSE_TOKEN(FLOATLTR);
+    }
+    else return false;
+    return error;
 }
 
 bool frontend::Parser::parsePrimaryExp(PrimaryExp* root) {
-    
+    bool error = true;
+    if(CUR_TOKEN_IS(LPARENT)) {
+        PARSE_TOKEN(LPARENT);
+        if(isExp()) {
+            PARSE(son, Exp);
+            error &= parseExp(son);
+        }
+        else return false;
+        if(CUR_TOKEN_IS(RPARENT)) {
+            PARSE_TOKEN(RPARENT);
+        }
+        else return false;
+    }
+    else if(CUR_TOKEN_IS(IDENFR)) {
+        PARSE(son, LVal);
+        error &= parseLVal(son);
+    }
+    else if(CUR_TOKEN_IS(INTLTR) || CUR_TOKEN_IS(FLOATLTR)) {
+        PARSE(son, Number);
+        error &= parseNumber(son);
+    }
+    else return false;
+    return error;
 }
 
 bool frontend::Parser::parseUnaryExp(UnaryExp* root) {
-    
+    bool error = true;
+    if(CUR_TOKEN_IS(IDENFR) && NXT_TOKEN_IS(LPARENT, 1)) {
+        PARSE_TOKEN(IDENFR);
+        if(CUR_TOKEN_IS(LPARENT)) {
+            PARSE_TOKEN(LPARENT);
+        }
+        else return false;
+        if(index < token_stream.size()) {
+            if(isExp()) {
+                PARSE(son,FuncRParams);
+                error &= parseFuncRParams(son);
+            }
+        }
+        if(CUR_TOKEN_IS(RPARENT)) {
+            PARSE_TOKEN(RPARENT);
+        }
+        else return false;
+    }
+    else if(CUR_TOKEN_IS(LPARENT) || CUR_TOKEN_IS(IDENFR) 
+    || CUR_TOKEN_IS(INTLTR) || CUR_TOKEN_IS(FLOATLTR) ) {
+        PARSE(son, PrimaryExp);
+        error &= parsePrimaryExp(son);
+    }
+    else if(CUR_TOKEN_IS(PLUS) || CUR_TOKEN_IS(MINU) || CUR_TOKEN_IS(NOT)) {
+        PARSE(son, UnaryOp);
+        error &= parseUnaryOp(son);
+    }
+    else return false;
+    return error;
 }
 
 bool frontend::Parser::parseUnaryOp(UnaryOp* root) {
-    
+    bool error = true;
+    if(CUR_TOKEN_IS(PLUS)) {
+        PARSE_TOKEN(PLUS);
+    }
+    else if(CUR_TOKEN_IS(MINU)) {
+        PARSE_TOKEN(MINU);
+    }
+    else if(CUR_TOKEN_IS(NOT)) {
+        PARSE_TOKEN(NOT);
+    }
+    else return false;
+    return error;
 }
 
 bool frontend::Parser::parseFuncRParams(FuncRParams* root) {
-    
+    bool error = true;
+    if(isExp()) {
+        PARSE(son, Exp);
+        error &= parseExp(son);
+    }
+    else return false;
+    while(index < token_stream.size()) {
+        if(CUR_TOKEN_IS(COMMA)) {
+            PARSE_TOKEN(COMMA);
+        }
+        else break;
+        if(isExp()) {
+            PARSE(son, Exp);
+            error &= parseExp(son);
+        }
+        else return false;
+    }
+    return error;
 }
 
 bool frontend::Parser::parseMulExp(MulExp* root) {
-    
+    bool error = true;
+    if(isExp()) {
+        PARSE(son, UnaryExp);
+        error &= parseUnaryExp(son);
+    }
+    else return false;
+    while(index < token_stream.size()) {
+        if(CUR_TOKEN_IS(MULT)) {
+            PARSE_TOKEN(MULT);
+        }
+        else if(CUR_TOKEN_IS(DIV)) {
+            PARSE_TOKEN(DIV);
+        }
+        else if(CUR_TOKEN_IS(MOD)) {
+            PARSE_TOKEN(MOD);
+        }
+        else break;
+        if(isExp()) {
+            PARSE(son, UnaryExp);
+            error &= parseUnaryExp(son);
+        }
+        else return false;
+    }
+    return error;
 }
 
 bool frontend::Parser::parseAddExp(AddExp* root) {
-    
+    bool error = true;
+    if(isExp()) {
+        PARSE(son, MulExp);
+        error &= parseMulExp(son);
+    }
+    else return false;
+    while(index < token_stream.size()) {
+        if(CUR_TOKEN_IS(PLUS)) {
+            PARSE_TOKEN(PLUS);
+        }
+        else if(CUR_TOKEN_IS(MINU)) {
+            PARSE_TOKEN(MINU);
+        }
+        else break;
+        if(isExp()) {
+            PARSE(son, MulExp);
+            error &= parseMulExp(son);
+        }
+        else return false;
+    }
+    return error;
 }
 
 bool frontend::Parser::parseRelExp(RelExp* root) {
-    
+    bool error = true;
+    if(isExp()) {
+        PARSE(son, AddExp);
+        error &= parseAddExp(son);
+    }
+    else return false;
+    while(index < token_stream.size()) {
+        if(CUR_TOKEN_IS(LSS)) {
+            PARSE_TOKEN(LSS);
+        }
+        else if(CUR_TOKEN_IS(GTR)) {
+            PARSE_TOKEN(GTR);
+        }
+        else if(CUR_TOKEN_IS(LEQ)) {
+            PARSE_TOKEN(LEQ);
+        }
+        else if(CUR_TOKEN_IS(GEQ)) {
+            PARSE_TOKEN(GEQ);
+        }
+        else break;
+        if(isExp()) {
+            PARSE(son, AddExp);
+            error &= parseAddExp(son);
+        }
+        else return false;
+    }
+    return error;
 }
 
 bool frontend::Parser::parseEqExp(EqExp* root) {
-    
+    bool error = true;
+    if(isExp()) {
+        PARSE(son, RelExp);
+        error &= parseRelExp(son);
+    }
+    else return false;
+    while(index < token_stream.size()) {
+        if(CUR_TOKEN_IS(EQL)) {
+            PARSE_TOKEN(EQL);
+        }
+        else if(CUR_TOKEN_IS(NEQ)) {
+            PARSE_TOKEN(NEQ);
+        }
+        else break;
+        if(isExp()) {
+            PARSE(son, RelExp);
+            error &= parseRelExp(son);
+        }
+        else return false;
+    }
+    return error;
 }
 
 bool frontend::Parser::parseLAndExp(LAndExp* root) {
-    
+    bool error = true;
+    if(isExp()) {
+        PARSE(son, EqExp);
+        error &= parseEqExp(son);
+    }
+    else return false;
+    if(index < token_stream.size()) {
+        if(CUR_TOKEN_IS(AND)) {
+            PARSE_TOKEN(AND);
+            if(isExp()) {
+                PARSE(son, LAndExp);
+                error &= parseLAndExp(son);
+            }
+            else return false;
+        }
+    }
+    return error;
 }
 
 bool frontend::Parser::parseLOrExp(LOrExp* root) {
-    
+    bool error = true;
+    if(isExp()) {
+        PARSE(son, LAndExp);
+        error &= parseLAndExp(son);
+    }
+    else return false;
+    if(index < token_stream.size()) {
+        if(CUR_TOKEN_IS(OR)) {
+            PARSE_TOKEN(OR);
+            if(isExp()) {
+                PARSE(son, LOrExp);
+                error &= parseLOrExp(son);
+            }
+            else return false;
+        }
+    }
+    return error;
 }
 
 bool frontend::Parser::parseConstExp(ConstExp* root) {
-    
+    bool error = true;
+    if(isExp()) {
+        PARSE(son, AddExp);
+        error &= parseAddExp(son);
+    }
+    else return false;
+    return error;
 }
 
 

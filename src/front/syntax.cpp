@@ -5,9 +5,9 @@
 
 using frontend::Parser;
 
-// #define DEBUG_PARSER
+#define DEBUG_PARSER
 #define TODO assert(0 && "todo")
-#define CUR_TOKEN_IS(tk_type) (token_stream[index].type == TokenType::tk_type)
+#define CUR_TOKEN_IS(tk_type) (index < token_stream.size() && token_stream[index].type == TokenType::tk_type)
 #define NXT_TOKEN_IS(tk_type, nxt) (index + nxt < token_stream.size() && token_stream[index + nxt].type == TokenType::tk_type)
 #define PARSE_TOKEN(tk_type) root->children.push_back(parseTerm(root, TokenType::tk_type))
 #define PARSE(name, type) auto name = new type(root); assert(parse##type(name)); root->children.push_back(name); 
@@ -25,8 +25,8 @@ bool frontend::Parser::isExp() {
 }
 
 frontend::Term* frontend::Parser::parseTerm(AstNode *parent, TokenType expected) {
-    if(token_stream[index].type == expected) {
-        Term* node = new Term(token_stream[index],parent);
+    if(index < token_stream.size() && token_stream[index].type == expected) {
+        auto node = new Term(token_stream[index], parent);
         index++;
         return node;
     }
@@ -36,7 +36,7 @@ frontend::Term* frontend::Parser::parseTerm(AstNode *parent, TokenType expected)
 }
 
 frontend::CompUnit* Parser::get_abstract_syntax_tree(){
-    CompUnit* root = nullptr;
+    CompUnit* root = new CompUnit(nullptr);
     if(parseCompUnit(root) == false) {
         assert(0 && "get_abstruct_syntax_tree error");
     }
@@ -44,55 +44,46 @@ frontend::CompUnit* Parser::get_abstract_syntax_tree(){
 }
 
 bool frontend::Parser::parseCompUnit(CompUnit* root) {
-    bool error = true;
     if(CUR_TOKEN_IS(CONSTTK) || CUR_TOKEN_IS(INTTK) || CUR_TOKEN_IS(FLOATTK) || CUR_TOKEN_IS(VOIDTK)) {
         if((CUR_TOKEN_IS(INTTK) || CUR_TOKEN_IS(FLOATTK) || CUR_TOKEN_IS(VOIDTK)) && NXT_TOKEN_IS(IDENFR, 1) && NXT_TOKEN_IS(LPARENT, 2) ) {
             PARSE(son, FuncDef);
-            error &= parseFuncDef(son);
         }
-        else {
+        else if(CUR_TOKEN_IS(CONSTTK) || CUR_TOKEN_IS(INTTK) || CUR_TOKEN_IS(FLOATTK)) {
             PARSE(son, Decl);
-            error &= parseDecl(son);
         }
+        else return false;
     }
     else return false;
     if(index < token_stream.size()) {
         if(CUR_TOKEN_IS(CONSTTK) || CUR_TOKEN_IS(INTTK) || CUR_TOKEN_IS(FLOATTK) || CUR_TOKEN_IS(VOIDTK)) {
             PARSE(son, CompUnit);
-            error &= parseCompUnit(son);
         }
     }
-    return error;
+    return true;
 }
 
 bool frontend::Parser::parseDecl(Decl* root) {
-    bool error = true;
     if(CUR_TOKEN_IS(CONSTTK)) {
         PARSE(son, ConstDecl);
-        error &= parseConstDecl(son);
     }
     else if(CUR_TOKEN_IS(INTTK) || CUR_TOKEN_IS(FLOATTK)) {
         PARSE(son, VarDecl);
-        error &= parseVarDecl(son);
     }
     else return false;
-    return error;
+    return true;
 }
 
 bool frontend::Parser::parseConstDecl(ConstDecl* root) {
-    bool error = true;
     if(CUR_TOKEN_IS(CONSTTK)) {
         PARSE_TOKEN(CONSTTK);
     }
     else return false;
     if(CUR_TOKEN_IS(INTTK) || CUR_TOKEN_IS(FLOATTK)) {
         PARSE(son, BType);
-        error &= parseBType(son);
     }
     else return false;
     if(CUR_TOKEN_IS(IDENFR)) {
         PARSE(son, ConstDef);
-        error &= parseConstDef(son);
     }
     else return false;
     while(index < token_stream.size()) {
@@ -102,7 +93,6 @@ bool frontend::Parser::parseConstDecl(ConstDecl* root) {
         else break;
         if(CUR_TOKEN_IS(IDENFR)) {
             PARSE(son, ConstDef);
-            error &= parseConstDef(son);
         }
         else return false;
     }
@@ -110,7 +100,7 @@ bool frontend::Parser::parseConstDecl(ConstDecl* root) {
         PARSE_TOKEN(SEMICN);
     }
     else return false;
-    return error;
+    return true;
 }
 
 bool frontend::Parser::parseBType(BType* root) {
@@ -125,7 +115,6 @@ bool frontend::Parser::parseBType(BType* root) {
 }
 
 bool frontend::Parser::parseConstDef(ConstDef* root) {
-    bool error = true;
     if(CUR_TOKEN_IS(IDENFR)) {
         PARSE_TOKEN(IDENFR);
     }
@@ -137,7 +126,6 @@ bool frontend::Parser::parseConstDef(ConstDef* root) {
         else break;
         if(isExp()) {
             PARSE(son, ConstExp);
-            error &= parseConstExp(son);
         }
         else return false;
         if(CUR_TOKEN_IS(RBRACK)) {
@@ -151,24 +139,20 @@ bool frontend::Parser::parseConstDef(ConstDef* root) {
     else return false;
     if(isExp() || CUR_TOKEN_IS(LBRACE)) {
         PARSE(son, ConstInitVal);
-        error &= parseConstInitVal(son);
     }
     else return false;
-    return error;
+    return true;
 }
 
 bool frontend::Parser::parseConstInitVal(ConstInitVal* root) {
-    bool error = true;
     if(isExp()) {
         PARSE(son, ConstExp);
-        error &= parseConstExp(son);
     }
     else if(CUR_TOKEN_IS(LBRACE)) {
         PARSE_TOKEN(LBRACE);
         if(index < token_stream.size()) {
                 if((isExp() || CUR_TOKEN_IS(LBRACE))) {
                 PARSE(son, ConstInitVal);
-                error &= parseConstInitVal(son);
                 while(index < token_stream.size()) {
                     if(CUR_TOKEN_IS(COMMA)) {
                         PARSE_TOKEN(COMMA);
@@ -176,27 +160,27 @@ bool frontend::Parser::parseConstInitVal(ConstInitVal* root) {
                     else break;
                     if(isExp() || CUR_TOKEN_IS(LBRACE)) {
                         PARSE(son, ConstInitVal);
-                        error &= parseConstInitVal(son);
                     }
                     else return false;
                 }
             }
         }
+        if(CUR_TOKEN_IS(RBRACE)) {
+            PARSE_TOKEN(RBRACE);
+        }
+        else return false;
     }
     else return false;
-    return error;
+    return true;
 }
 
 bool frontend::Parser::parseVarDecl(VarDecl* root) {
-    bool error = true;
     if(CUR_TOKEN_IS(INTTK) || CUR_TOKEN_IS(FLOATTK)) {
         PARSE(son, BType);
-        error &= parseBType(son);
     }
     else return false;
     if(CUR_TOKEN_IS(IDENFR)) {
         PARSE(son, VarDef);
-        error &= parseVarDef(son);
     }
     else return false;
     while(index < token_stream.size()) {
@@ -206,7 +190,6 @@ bool frontend::Parser::parseVarDecl(VarDecl* root) {
         else break;
         if(CUR_TOKEN_IS(IDENFR)) {
             PARSE(son, VarDef);
-            error &= parseVarDef(son);
         }
         else return false;
     }
@@ -214,11 +197,10 @@ bool frontend::Parser::parseVarDecl(VarDecl* root) {
         PARSE_TOKEN(SEMICN);
     }
     else return false;
-    return error;
+    return true;
 }
 
 bool frontend::Parser::parseVarDef(VarDef* root) {
-    bool error = true;
     if(CUR_TOKEN_IS(IDENFR)) {
         PARSE_TOKEN(IDENFR);
     }
@@ -230,7 +212,6 @@ bool frontend::Parser::parseVarDef(VarDef* root) {
         else break;
         if(isExp()) {
             PARSE(son, ConstExp);
-            error &= parseConstExp(son);
         }
         else return false;
         if(CUR_TOKEN_IS(RBRACK)) {
@@ -243,26 +224,22 @@ bool frontend::Parser::parseVarDef(VarDef* root) {
             PARSE_TOKEN(ASSIGN);
             if(isExp() || CUR_TOKEN_IS(LBRACE)) {
                 PARSE(son, InitVal);
-                error &= parseInitVal(son);
             }
             else return false;
         }
     }
-    return error;
+    return true;
 }
 
 bool frontend::Parser::parseInitVal(InitVal* root) {
-    bool error = true;
     if(isExp()) {
         PARSE(son, Exp);
-        error &= parseExp(son);
     }
     else if(CUR_TOKEN_IS(LBRACE)) {
         PARSE_TOKEN(LBRACE);
         if(index < token_stream.size()) {
             if(isExp() || CUR_TOKEN_IS(LBRACE)) {
                 PARSE(son, InitVal);
-                error &= parseInitVal(son);
                 while(index < token_stream.size()) {
                     if(CUR_TOKEN_IS(COMMA)) {
                         PARSE_TOKEN(COMMA);
@@ -270,7 +247,6 @@ bool frontend::Parser::parseInitVal(InitVal* root) {
                     else break;
                     if(isExp() || CUR_TOKEN_IS(LBRACE)) {
                         PARSE(son, InitVal);
-                        error &= parseInitVal(son);
                     }
                     else return false;
                 }
@@ -282,14 +258,12 @@ bool frontend::Parser::parseInitVal(InitVal* root) {
         else return false;
     }
     else return false;
-    return error;
+    return true;
 }
 
 bool frontend::Parser::parseFuncDef(FuncDef* root) {
-    bool error = true;
     if(CUR_TOKEN_IS(VOIDTK) || CUR_TOKEN_IS(INTTK) || CUR_TOKEN_IS(FLOATTK)) {
         PARSE(son, FuncType);
-        error &= parseFuncType(son);
     }
     else return false;
     if(CUR_TOKEN_IS(IDENFR)) {
@@ -303,7 +277,6 @@ bool frontend::Parser::parseFuncDef(FuncDef* root) {
     if(index < token_stream.size()) {
         if(CUR_TOKEN_IS(INTTK) || CUR_TOKEN_IS(FLOATTK)) {
             PARSE(son, FuncFParams);
-            error &= parseFuncFParams(son);
         }
     }
     if(CUR_TOKEN_IS(RPARENT)) {
@@ -312,14 +285,12 @@ bool frontend::Parser::parseFuncDef(FuncDef* root) {
     else return false;
     if(CUR_TOKEN_IS(LBRACE)) {
         PARSE(son,Block);
-        error &= parseBlock(son);
     }
     else return false;
-    return error;
+    return true;
 }
 
 bool frontend::Parser::parseFuncType(FuncType* root) {
-    bool error = true;
     if(CUR_TOKEN_IS(VOIDTK)) {
         PARSE_TOKEN(VOIDTK);
     }
@@ -330,14 +301,12 @@ bool frontend::Parser::parseFuncType(FuncType* root) {
         PARSE_TOKEN(FLOATTK);
     }
     else return false;
-    return error;
+    return true;
 }
 
 bool frontend::Parser::parseFuncFParam(FuncFParam* root) {
-    bool error = true;
     if(CUR_TOKEN_IS(INTTK) || CUR_TOKEN_IS(FLOATTK)) {
         PARSE(son, BType);
-        error &= parseBType(son);
     }
     else return false;
     if(CUR_TOKEN_IS(IDENFR)) {
@@ -358,7 +327,6 @@ bool frontend::Parser::parseFuncFParam(FuncFParam* root) {
                 else break;
                 if(isExp()) {
                     PARSE(son,Exp);
-                    error &= parseExp(son);
                 }
                 else return false;
                 if(CUR_TOKEN_IS(RBRACK)) {
@@ -368,14 +336,12 @@ bool frontend::Parser::parseFuncFParam(FuncFParam* root) {
             }
         }
     }
-    return error;
+    return true;
 }
 
 bool frontend::Parser::parseFuncFParams(FuncFParams* root) {
-    bool error = true;
     if(CUR_TOKEN_IS(INTTK) || CUR_TOKEN_IS(FLOATTK)) {
         PARSE(son, FuncFParam);
-        error &= parseFuncFParam(son);
     }
     else return false;
     while(index < token_stream.size()) {
@@ -385,15 +351,13 @@ bool frontend::Parser::parseFuncFParams(FuncFParams* root) {
         else break;
         if(CUR_TOKEN_IS(INTTK) || CUR_TOKEN_IS(FLOATTK)) {
             PARSE(son, FuncFParam);
-            error &= parseFuncFParam(son);
         }
         else return false;
     }
-    return error;
+    return true;
 }
 
 bool frontend::Parser::parseBlock(Block* root) {
-    bool error = true;
     if(CUR_TOKEN_IS(LBRACE)) {
         PARSE_TOKEN(LBRACE);
     }
@@ -404,7 +368,6 @@ bool frontend::Parser::parseBlock(Block* root) {
         || CUR_TOKEN_IS(WHILETK) || CUR_TOKEN_IS(BREAKTK) || CUR_TOKEN_IS(CONTINUETK)
         || CUR_TOKEN_IS(RETURNTK) || CUR_TOKEN_IS(SEMICN)) {
             PARSE(son, BlockItem);
-            error &= parseBlockItem(son);
         }
         else break;
     }
@@ -412,28 +375,24 @@ bool frontend::Parser::parseBlock(Block* root) {
         PARSE_TOKEN(RBRACE);
     }
     else return false;
-    return error;
+    return true;
 }
 
 bool frontend::Parser::parseBlockItem(BlockItem* root) {
-    bool error = true;
     if(CUR_TOKEN_IS(CONSTTK) || CUR_TOKEN_IS(INTTK)
     || CUR_TOKEN_IS(FLOATTK)) {
         PARSE(son, Decl);
-        error &= parseDecl(son);
     }
     else if(isExp() || CUR_TOKEN_IS(LBRACE) || CUR_TOKEN_IS(IFTK)
     || CUR_TOKEN_IS(WHILETK) || CUR_TOKEN_IS(BREAKTK) || CUR_TOKEN_IS(CONTINUETK)
     || CUR_TOKEN_IS(RETURNTK) || CUR_TOKEN_IS(SEMICN)) {
         PARSE(son, Stmt);
-        error &= parseStmt(son);
     }
     else return false;
-    return error;
+    return true;
 }
 
 bool frontend::Parser::parseStmt(Stmt* root) {
-    bool error = true;
     if(CUR_TOKEN_IS(LBRACE)) {
         PARSE(son, Block);
         parseBlock(son);
@@ -446,7 +405,6 @@ bool frontend::Parser::parseStmt(Stmt* root) {
         else return false;
         if(isExp()) {
             PARSE(son, Cond);
-            error &= parseCond(son);
         }
         else return false;
         if(CUR_TOKEN_IS(RPARENT)) {
@@ -457,7 +415,6 @@ bool frontend::Parser::parseStmt(Stmt* root) {
         || CUR_TOKEN_IS(WHILETK) || CUR_TOKEN_IS(BREAKTK) || CUR_TOKEN_IS(CONTINUETK)
         || CUR_TOKEN_IS(RETURNTK) || CUR_TOKEN_IS(SEMICN)) {
             PARSE(son, Stmt);
-            error &= parseStmt(son);
         }
         else return false;
         if(index < token_stream.size()) {
@@ -467,7 +424,6 @@ bool frontend::Parser::parseStmt(Stmt* root) {
                 || CUR_TOKEN_IS(WHILETK) || CUR_TOKEN_IS(BREAKTK) || CUR_TOKEN_IS(CONTINUETK)
                 || CUR_TOKEN_IS(RETURNTK) || CUR_TOKEN_IS(SEMICN)) {
                     PARSE(son, Stmt);
-                    error &= parseStmt(son);
                 }
                 else return false;
             }
@@ -481,7 +437,6 @@ bool frontend::Parser::parseStmt(Stmt* root) {
         else return false;
         if(isExp()) {
             PARSE(son, Cond);
-            error &= parseCond(son);
         }
         else return false;
         if(CUR_TOKEN_IS(RPARENT)) {
@@ -492,7 +447,6 @@ bool frontend::Parser::parseStmt(Stmt* root) {
         || CUR_TOKEN_IS(WHILETK) || CUR_TOKEN_IS(BREAKTK) || CUR_TOKEN_IS(CONTINUETK)
         || CUR_TOKEN_IS(RETURNTK) || CUR_TOKEN_IS(SEMICN)) {
             PARSE(son, Stmt);
-            error &= parseStmt(son);
         }
         else return false;
     }
@@ -515,7 +469,6 @@ bool frontend::Parser::parseStmt(Stmt* root) {
         if(index < token_stream.size()) {
             if(isExp()) {
                 PARSE(son, Exp);
-                error &= parseExp(son);
             }
         }
         if(CUR_TOKEN_IS(SEMICN)) {
@@ -526,14 +479,12 @@ bool frontend::Parser::parseStmt(Stmt* root) {
     else if(isExp() || CUR_TOKEN_IS(SEMICN)) {
         if(CUR_TOKEN_IS(IDENFR) && !NXT_TOKEN_IS(LPARENT, 1)) {
             PARSE(son, LVal);
-            error &= parseLVal(son);
             if(CUR_TOKEN_IS(ASSIGN)) {
                 PARSE_TOKEN(ASSIGN);
             }
             else return false;
             if(isExp()) {
                 PARSE(son,Exp);
-                error &= parseExp(son);
             }
             else return false;
             if(CUR_TOKEN_IS(SEMICN)) {
@@ -545,7 +496,6 @@ bool frontend::Parser::parseStmt(Stmt* root) {
             if(index < token_stream.size()) {
                 if(isExp()) {
                     PARSE(son, Exp);
-                    error &= parseExp(son);
                 }
             }
             if(CUR_TOKEN_IS(SEMICN)) {
@@ -554,31 +504,26 @@ bool frontend::Parser::parseStmt(Stmt* root) {
             else return false;
         }
     }
-    return error;
+    return true;
 }
 
 bool frontend::Parser::parseExp(Exp* root) {
-    bool error = true;
     if(isExp()) {
         PARSE(son, AddExp);
-        error &= parseAddExp(son);
     }
     else return false;
-    return error;
+    return true;
 }
 
 bool frontend::Parser::parseCond(Cond* root) {
-    bool error = true;
     if(isExp()) {
         PARSE(son, LOrExp);
-        error &= parseLOrExp(son);
     }
     else return false;
-    return error;
+    return true;
 }
 
 bool frontend::Parser::parseLVal(LVal* root) {
-    bool error = true;
     if(CUR_TOKEN_IS(IDENFR)) {
         PARSE_TOKEN(IDENFR);
         while(index < token_stream.size()) {
@@ -588,7 +533,6 @@ bool frontend::Parser::parseLVal(LVal* root) {
             else break;
             if(isExp()) {
                 PARSE(son,Exp);
-                error &= parseExp(son);
             }
             else return false;
             if(CUR_TOKEN_IS(RBRACK)) {
@@ -598,11 +542,10 @@ bool frontend::Parser::parseLVal(LVal* root) {
         }
     }
     else return false;
-    return error;
+    return true;
 }
 
 bool frontend::Parser::parseNumber(Number* root) {
-    bool error = true;
     if(CUR_TOKEN_IS(INTLTR)) {
         PARSE_TOKEN(INTLTR);
     }
@@ -610,16 +553,14 @@ bool frontend::Parser::parseNumber(Number* root) {
         PARSE_TOKEN(FLOATLTR);
     }
     else return false;
-    return error;
+    return true;
 }
 
 bool frontend::Parser::parsePrimaryExp(PrimaryExp* root) {
-    bool error = true;
     if(CUR_TOKEN_IS(LPARENT)) {
         PARSE_TOKEN(LPARENT);
         if(isExp()) {
             PARSE(son, Exp);
-            error &= parseExp(son);
         }
         else return false;
         if(CUR_TOKEN_IS(RPARENT)) {
@@ -629,18 +570,15 @@ bool frontend::Parser::parsePrimaryExp(PrimaryExp* root) {
     }
     else if(CUR_TOKEN_IS(IDENFR)) {
         PARSE(son, LVal);
-        error &= parseLVal(son);
     }
     else if(CUR_TOKEN_IS(INTLTR) || CUR_TOKEN_IS(FLOATLTR)) {
         PARSE(son, Number);
-        error &= parseNumber(son);
     }
     else return false;
-    return error;
+    return true;
 }
 
 bool frontend::Parser::parseUnaryExp(UnaryExp* root) {
-    bool error = true;
     if(CUR_TOKEN_IS(IDENFR) && NXT_TOKEN_IS(LPARENT, 1)) {
         PARSE_TOKEN(IDENFR);
         if(CUR_TOKEN_IS(LPARENT)) {
@@ -650,7 +588,6 @@ bool frontend::Parser::parseUnaryExp(UnaryExp* root) {
         if(index < token_stream.size()) {
             if(isExp()) {
                 PARSE(son,FuncRParams);
-                error &= parseFuncRParams(son);
             }
         }
         if(CUR_TOKEN_IS(RPARENT)) {
@@ -661,18 +598,19 @@ bool frontend::Parser::parseUnaryExp(UnaryExp* root) {
     else if(CUR_TOKEN_IS(LPARENT) || CUR_TOKEN_IS(IDENFR) 
     || CUR_TOKEN_IS(INTLTR) || CUR_TOKEN_IS(FLOATLTR) ) {
         PARSE(son, PrimaryExp);
-        error &= parsePrimaryExp(son);
     }
     else if(CUR_TOKEN_IS(PLUS) || CUR_TOKEN_IS(MINU) || CUR_TOKEN_IS(NOT)) {
         PARSE(son, UnaryOp);
-        error &= parseUnaryOp(son);
+        if(isExp()) {
+            PARSE(son, UnaryExp);
+        }
+        else return false;
     }
     else return false;
-    return error;
+    return true;
 }
 
 bool frontend::Parser::parseUnaryOp(UnaryOp* root) {
-    bool error = true;
     if(CUR_TOKEN_IS(PLUS)) {
         PARSE_TOKEN(PLUS);
     }
@@ -683,14 +621,12 @@ bool frontend::Parser::parseUnaryOp(UnaryOp* root) {
         PARSE_TOKEN(NOT);
     }
     else return false;
-    return error;
+    return true;
 }
 
 bool frontend::Parser::parseFuncRParams(FuncRParams* root) {
-    bool error = true;
     if(isExp()) {
         PARSE(son, Exp);
-        error &= parseExp(son);
     }
     else return false;
     while(index < token_stream.size()) {
@@ -700,18 +636,15 @@ bool frontend::Parser::parseFuncRParams(FuncRParams* root) {
         else break;
         if(isExp()) {
             PARSE(son, Exp);
-            error &= parseExp(son);
         }
         else return false;
     }
-    return error;
+    return true;
 }
 
 bool frontend::Parser::parseMulExp(MulExp* root) {
-    bool error = true;
     if(isExp()) {
         PARSE(son, UnaryExp);
-        error &= parseUnaryExp(son);
     }
     else return false;
     while(index < token_stream.size()) {
@@ -727,18 +660,15 @@ bool frontend::Parser::parseMulExp(MulExp* root) {
         else break;
         if(isExp()) {
             PARSE(son, UnaryExp);
-            error &= parseUnaryExp(son);
         }
         else return false;
     }
-    return error;
+    return true;
 }
 
 bool frontend::Parser::parseAddExp(AddExp* root) {
-    bool error = true;
     if(isExp()) {
         PARSE(son, MulExp);
-        error &= parseMulExp(son);
     }
     else return false;
     while(index < token_stream.size()) {
@@ -751,18 +681,15 @@ bool frontend::Parser::parseAddExp(AddExp* root) {
         else break;
         if(isExp()) {
             PARSE(son, MulExp);
-            error &= parseMulExp(son);
         }
         else return false;
     }
-    return error;
+    return true;
 }
 
 bool frontend::Parser::parseRelExp(RelExp* root) {
-    bool error = true;
     if(isExp()) {
         PARSE(son, AddExp);
-        error &= parseAddExp(son);
     }
     else return false;
     while(index < token_stream.size()) {
@@ -781,18 +708,15 @@ bool frontend::Parser::parseRelExp(RelExp* root) {
         else break;
         if(isExp()) {
             PARSE(son, AddExp);
-            error &= parseAddExp(son);
         }
         else return false;
     }
-    return error;
+    return true;
 }
 
 bool frontend::Parser::parseEqExp(EqExp* root) {
-    bool error = true;
     if(isExp()) {
         PARSE(son, RelExp);
-        error &= parseRelExp(son);
     }
     else return false;
     while(index < token_stream.size()) {
@@ -805,18 +729,15 @@ bool frontend::Parser::parseEqExp(EqExp* root) {
         else break;
         if(isExp()) {
             PARSE(son, RelExp);
-            error &= parseRelExp(son);
         }
         else return false;
     }
-    return error;
+    return true;
 }
 
 bool frontend::Parser::parseLAndExp(LAndExp* root) {
-    bool error = true;
     if(isExp()) {
         PARSE(son, EqExp);
-        error &= parseEqExp(son);
     }
     else return false;
     if(index < token_stream.size()) {
@@ -824,19 +745,16 @@ bool frontend::Parser::parseLAndExp(LAndExp* root) {
             PARSE_TOKEN(AND);
             if(isExp()) {
                 PARSE(son, LAndExp);
-                error &= parseLAndExp(son);
             }
             else return false;
         }
     }
-    return error;
+    return true;
 }
 
 bool frontend::Parser::parseLOrExp(LOrExp* root) {
-    bool error = true;
     if(isExp()) {
         PARSE(son, LAndExp);
-        error &= parseLAndExp(son);
     }
     else return false;
     if(index < token_stream.size()) {
@@ -844,22 +762,19 @@ bool frontend::Parser::parseLOrExp(LOrExp* root) {
             PARSE_TOKEN(OR);
             if(isExp()) {
                 PARSE(son, LOrExp);
-                error &= parseLOrExp(son);
             }
             else return false;
         }
     }
-    return error;
+    return true;
 }
 
 bool frontend::Parser::parseConstExp(ConstExp* root) {
-    bool error = true;
     if(isExp()) {
         PARSE(son, AddExp);
-        error &= parseAddExp(son);
     }
     else return false;
-    return error;
+    return true;
 }
 
 
